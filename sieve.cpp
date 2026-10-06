@@ -2,17 +2,20 @@
 #include <vector>
 #include <cmath>
 #include <cstdint>
+#include <chrono>
+#include <algorithm>
+#include <iomanip>
 
 // Function that returns the count of primes <= N
 uint64_t count_primes(uint64_t N) {
-    // 1. Allocate N + 1 flags initialized to 1 (using uint8_t for 1-byte representation)
+    // Allocate N + 1 flags initialized to 1 (using uint8_t for 1-byte representation)
     std::vector<uint8_t> flags(N + 1, 1);
 
-    // 2. Set flags for 0 and 1 to 0
+    // Set flags for 0 and 1 to 0
     flags[0] = 0;
     flags[1] = 0;
 
-    // 3. Mark multiples of primes up to sqrt(N)
+    // Mark multiples of primes up to sqrt(N)
     uint64_t limit = static_cast<uint64_t>(std::sqrt(N));
     for (uint64_t p = 2; p <= limit; ++p) {
         if (flags[p] == 1) {
@@ -22,7 +25,7 @@ uint64_t count_primes(uint64_t N) {
         }
     }
 
-    // 4. Count remaining flags equal to 1 using an explicit loop
+    // Count remaining flags equal to 1 using an explicit loop
     uint64_t count = 0;
     for (uint64_t i = 0; i <= N; ++i) {
         if (flags[i] == 1) {
@@ -33,13 +36,43 @@ uint64_t count_primes(uint64_t N) {
     return count;
 }
 
-int main() {
-    uint64_t test_values[] = {2, 10, 100, 100000, 1000000, 10000000};
-
-    std::cout << "--- Correctness Checks (C++) ---\n";
-    for (uint64_t N : test_values) {
-        std::cout << "N = " << N << "\t | pi(N) = " << count_primes(N) << "\n";
+void run_benchmark(uint64_t N, int warmup_runs = 5, int measured_runs = 10) {
+    // Warm-up calls
+    for (int i = 0; i < warmup_runs; ++i) {
+        volatile uint64_t dummy = count_primes(N);
+        (void)dummy;
     }
 
+    // Timed calls
+    std::vector<double> timings_ms;
+    uint64_t last_count = 0;
+
+    for (int i = 0; i < measured_runs; ++i) {
+        auto start = std::chrono::steady_clock::now();
+        last_count = count_primes(N);
+        auto end = std::chrono::steady_clock::now();
+        
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        timings_ms.push_back(elapsed.count());
+    }
+
+    std::cout << "N = " << N << " | pi(N) = " << last_count << "\n";
+    std::cout << "  Runs (ms): ";
+    for (double t : timings_ms) {
+        std::cout << std::fixed << std::setprecision(3) << t << " ";
+    }
+    std::cout << "\n";
+
+    std::vector<double> sorted_t = timings_ms;
+    std::sort(sorted_t.begin(), sorted_t.end());
+    std::cout << "  Median: " << sorted_t[sorted_t.size() / 2] << " ms\n\n";
+}
+
+int main() {
+    std::cout << "--- Task 2: C++ Performance Measurement ---\n";
+    run_benchmark(100000);
+    run_benchmark(1000000);
+    run_benchmark(10000000);
     return 0;
 }
+
